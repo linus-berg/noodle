@@ -198,6 +198,48 @@ It keeps a download cache (`DOWNLOAD_DIR`), so the downloading and uploading
 can happen on different machines: run it once where the internet is, carry
 the cache over, and run it again (with `NOODLE_URL` set) where the server is.
 
+### Migrating tarballs from an S3 bucket
+
+`scripts/migrate-from-s3.py` copies every `.tgz` below a prefix of an S3
+bucket into Noodle, once, for example a store laid out as
+`npm/registry.npmjs.org/<name>/<file>.tgz` and
+`npm/registry.npmjs.org/@scope/<name>/<file>.tgz` (the layout does not matter:
+Noodle reads name and version from each tarball). It needs only Python 3.9+.
+
+```bash
+export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... NOODLE_API_KEY=...
+scripts/migrate-from-s3.py \
+    --source-url https://minio.corp.example:9000 --source-bucket packages \
+    --source-prefix npm/registry.npmjs.org/ \
+    --noodle-url https://npm.corp.example --parallel 64 \
+    --state migration.sqlite --failures problems.tsv
+```
+
+* **Resumable.** Progress is kept in an SQLite file (`--state`). Ctrl-C
+  finishes the uploads in flight and stops; after that, a crash or a `kill -9`,
+  the same command continues where it stopped without listing the bucket
+  again. Transient errors are retried; what still failed is retried on the
+  next run.
+* **Checked.** Each tarball is streamed from the GET straight into the upload
+  (no temporary files), and the SHA-512 of the bytes read from S3 must match
+  the integrity Noodle reports. Damaged tarballs (400) and different tarballs
+  of an existing version (409) are recorded and written to `--failures`.
+* **Fast.** The bucket is listed while uploading; `--parallel` uploads run at
+  a time over kept-alive connections; `--noodle-url` can be repeated to spread
+  the load over several instances. One copy of the script handles about 800
+  small tarballs or 500 MB/s; for more, run copies side by side with
+  `--shard 0/4`, `--shard 1/4`, ... and a `--state` file each. In a test with
+  MinIO, Noodle and the script on one machine, Noodle took about 300 new
+  packages, or 220 MB/s of large tarballs, a second; the store and the number
+  of Noodle instances usually set the pace.
+* **Catching up.** Tarballs added to the bucket after it was listed
+  completely are copied with `--relist` (lists everything again, uploads only
+  keys it has not seen), e.g. right before clients are switched over.
+* `--list-only` lists the bucket and counts without uploading; `--limit N`
+  copies at most N tarballs (for a trial run). Exit code 0 means every tarball
+  is in Noodle, 1 that some were rejected, conflict or failed (or the run was
+  interrupted), 2 that it could not run (settings, credentials, connection).
+
 ### dist-tags
 
 Only `latest` is maintained automatically (the highest version without
