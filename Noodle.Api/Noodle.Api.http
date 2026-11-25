@@ -1,0 +1,83 @@
+@Noodle_HostAddress = http://localhost:5090
+@ApiKey = dev-api-key
+
+### Upload a tarball (raw body, like curl --data-binary)
+PUT {{Noodle_HostAddress}}/-/noodle/upload
+Authorization: Bearer {{ApiKey}}
+Content-Type: application/octet-stream
+
+< ./express-5.1.0.tgz
+
+### Upload and wait until it is visible (no batching)
+PUT {{Noodle_HostAddress}}/-/noodle/upload?wait=true
+Authorization: Bearer {{ApiKey}}
+Content-Type: application/octet-stream
+
+< ./express-5.1.0.tgz
+
+### Packument, abbreviated (what installs fetch)
+GET {{Noodle_HostAddress}}/express
+Accept: application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*
+
+### Packument, full (npm view)
+GET {{Noodle_HostAddress}}/express
+Accept: application/json
+
+### Scoped package
+GET {{Noodle_HostAddress}}/@types%2fnode
+
+### One version, or a dist-tag
+GET {{Noodle_HostAddress}}/express/5.1.0
+
+###
+GET {{Noodle_HostAddress}}/express/latest
+
+### Tarball
+GET {{Noodle_HostAddress}}/express/-/express-5.1.0.tgz
+
+### dist-tags
+GET {{Noodle_HostAddress}}/-/package/express/dist-tags
+
+### Set a dist-tag (the body is the version as a JSON string)
+PUT {{Noodle_HostAddress}}/-/package/express/dist-tags/next
+Authorization: Bearer {{ApiKey}}
+Content-Type: application/json
+
+"5.1.0"
+
+### Remove a dist-tag
+DELETE {{Noodle_HostAddress}}/-/package/express/dist-tags/next
+Authorization: Bearer {{ApiKey}}
+
+### Search
+GET {{Noodle_HostAddress}}/-/v1/search?text=express&size=10
+
+### Search with qualifiers
+GET {{Noodle_HostAddress}}/-/v1/search?text=keywords:framework%20not:unstable&size=10
+
+### Audit (npm 7+)
+POST {{Noodle_HostAddress}}/-/npm/v1/security/advisories/bulk
+Content-Type: application/json
+
+{"lodash": ["4.17.15"]}
+
+### Import security advisories (OSV, e.g. npm/all.zip from osv.dev)
+PUT {{Noodle_HostAddress}}/-/noodle/advisories?source=osv-npm-all.zip
+Authorization: Bearer {{ApiKey}}
+Content-Type: application/zip
+
+< ./all.zip
+
+### Delete a version (purge)
+DELETE {{Noodle_HostAddress}}/-/noodle/package/express/5.1.0
+Authorization: Bearer {{ApiKey}}
+
+### Rebuild the catalog from S3 (?scope=versions or ?scope=packuments for more)
+POST {{Noodle_HostAddress}}/-/noodle/rebuild?wait=true
+Authorization: Bearer {{ApiKey}}
+
+### Health (advisory data status, counters) and readiness
+GET {{Noodle_HostAddress}}/health
+
+###
+GET {{Noodle_HostAddress}}/health/ready

@@ -1,0 +1,22 @@
+bin/
+obj/
+riderModule.iml
+/_ReSharper.Caches/
+.idea
+.vs/
+*.user
+
+# Generated certificates and secrets (deploy/generate-certs.sh, .env)
+deploy/certs/
+deploy/.env
+.env
+
+# Installs and caches of the example project
+examples/node_modules/
+examples/dist/
+examples/.npm-cache/
+examples/.yarn/
+examples/.pnpm-store/
+
+# Python bytecode (scripts/)
+__pycache__/
